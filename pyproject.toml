@@ -1,0 +1,16 @@
+[tool.poetry]
+name = "cv2077"
+version = "0.0.1"
+description = "CV 2024 Spring"
+authors = ["catJam <loginerrore04@gmail.com>"]
+license = "MIT"
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = ">=3.8"
+opencv-python = "^4.9.0.80"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
