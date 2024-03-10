@@ -1,9 +1,8 @@
 import cv2
-from typing import List
 from collections import defaultdict
 from copy import deepcopy
 import numpy as np
-from cv2.typing import MatLike
+from alive_progress import alive_bar
 
 
 class Problem:
@@ -23,7 +22,7 @@ class Q1:
             self.images.append(cv2.imread('./images/img' + str(i) + '.png'))
 
         @problem
-        def P1():
+        def P1(bar: alive_bar):
             imgs = deepcopy(self.images)
             for i in range(3):
                 for row in imgs[i]:
@@ -36,11 +35,12 @@ class Q1:
                         pixel[2] = grayScale
                 cv2.imwrite('./results/img' + str(i + 1) +
                             '_q1-1.png', imgs[i])
+                bar()
             self.grayScaled = imgs
         self.P1 = P1
 
         @problem
-        def P2():
+        def P2(bar: alive_bar):
             imgs = deepcopy(self.grayScaled)
             thresh = 128
             for i in range(3):
@@ -56,191 +56,14 @@ class Q1:
                             pixel[2] = 0
                 cv2.imwrite('./results/img' + str(i + 1) +
                             '_q1-2.png', imgs[i])
+                bar()
         self.P2 = P2
 
         @problem
-        def P3():
-            MAX_COLORS = 16
-            imgs = deepcopy(self.images)
-            for i in range(3):
-                colors = defaultdict(int)
-                for row in imgs[i]:
-                    for pixel in row:
-                        rgb = pixel[0] << 16 | pixel[1] << 8 | pixel[2]
-                        colors[rgb] += 1
-                sortedColors = sorted(
-                    colors.items(), key=lambda x: x[1], reverse=True)
-                sortedColors = [colorPair[0]
-                                for colorPair in sortedColors[:MAX_COLORS]]
-                for row in imgs[i]:
-                    for pixel in row:
-                        rgb = pixel[0] << 16 | pixel[1] << 8 | pixel[2]
-                        minDiff = float('inf')
-                        index = -1
-                        for j in range(MAX_COLORS):
-                            diff = abs(rgb - sortedColors[j])
-                            if diff < minDiff:
-                                minDiff = diff
-                                index = j
-                        pixel[0] = sortedColors[index] >> 16
-                        pixel[1] = (sortedColors[index] >> 8) & 0xFF
-                        pixel[2] = sortedColors[index] & 0xFF
-                cv2.imwrite('./results/img' + str(i + 1) +
-                            '_q1-3.png', imgs[i])
-
-        self.P3 = P3
-
-        @problem
-        def P3ALTER():
-            MAX_COLORS = 16
-            CLUSTERS = 4  # cause there are three colors, 4 * 4 * 4 => 64
-            DIV = 256//CLUSTERS
-            imgs = deepcopy(self.images)
-
-            for i in range(3):
-                colors = defaultdict(int)
-                for row in imgs[i]:
-                    for pixel in row:
-                        rgb = (pixel[0]//DIV) << 16 | \
-                            (pixel[1]//DIV) << 8 | (pixel[2]//DIV)
-                        colors[rgb] += 1
-                sortedColors = sorted(
-                    colors.items(), key=lambda x: x[1], reverse=True)
-                sortedColors = [colorPair[0]
-                                for colorPair in sortedColors[:MAX_COLORS]]
-                for row in imgs[i]:
-                    for pixel in row:
-                        rgb = (pixel[0]//DIV) << 16 | \
-                            (pixel[1]//DIV) << 8 | (pixel[2]//DIV)
-                        minDiff = float('inf')
-                        index = -1
-                        for j in range(min(MAX_COLORS, len(sortedColors))):
-                            r = (sortedColors[j] >> 16)*DIV
-                            g = ((sortedColors[j] >> 8) & 0xFF)*DIV
-                            b = (sortedColors[j] & 0xFF)*DIV
-                            diff = abs(r-pixel[0]) + \
-                                abs(g-pixel[1]) + abs(b-pixel[2])
-                            if diff < minDiff:
-                                minDiff = diff
-                                index = j
-                        pixel[0] = (sortedColors[index] >> 16)*DIV
-                        pixel[1] = ((sortedColors[index] >> 8) & 0xFF)*DIV
-                        pixel[2] = (sortedColors[index] & 0xFF)*DIV
-                cv2.imwrite('./results/img' + str(i + 1) +
-                            '_q1-3.png', imgs[i])
-        self.P3ALTER = P3ALTER
-
-        @problem
-        def P3077():
-            MAX_COLORS = 16
-            THRESH = 30
-            DIVS = 4
-            imgs = [img.astype(np.float32) for img in self.images]
-            for id, img in enumerate(imgs):
-                colors = []
-
-                def CloseEnough(color):
-                    for c in colors:
-                        if np.linalg.norm(c-color) < THRESH:
-                            return True
-                    return False
-                width, height, _ = img.shape
-                for i in range(width // DIVS):
-                    for j in range(height // DIVS):
-                        pixels = img[i*DIVS:(i+1)*DIVS, j*DIVS:(j+1)*DIVS]
-                        avg = np.mean(pixels, axis=(0, 1))
-                        if not CloseEnough(avg):
-                            colors.append(avg)
-                print(len(colors))
-                # color elimination by repeating increasing the threshold
-                thresh = THRESH
-                while len(colors) > MAX_COLORS:
-                    thresh += 0.1
-                    newColors = []
-                    for color in colors:
-                        flag = True
-                        for c in colors:
-                            if c is not color and np.linalg.norm(c-color) < thresh:
-                                flag = False
-                                break
-                        if flag:
-                            newColors.append(color)
-                    colors = newColors
-
-                print(len(colors))
-                for i in range(width):
-                    for j in range(height):
-                        pixel = img[i, j]
-                        minDiff = float('inf')
-                        index = -1
-                        for k in range(len(colors)):
-                            diff = np.linalg.norm(colors[k]-pixel)
-                            if diff < minDiff:
-                                minDiff = diff
-                                index = k
-                        img[i, j] = colors[index]
-                cv2.imwrite('./results/img' + str(id + 1) +
-                            '_q1-3.png', img.astype(np.uint8))
-            # pool from nearing colors, and insert into colors if there does not exist a color that is too close
-        self.P3077 = P3077
-
-        @problem
-        def P3000():
-            MAX_COLORS = 16
-            THRESH = 5
-            DIVS = 4
-            imgs = [img.astype(np.float32) for img in self.images]
-            for id, img in enumerate(imgs):
-                colors = []
-
-                def CloseEnough(color, flag=False, thresh=THRESH):
-                    for c in colors:
-                        if flag and c is color:
-                            continue
-                        if abs(c[0]-color[0]) < thresh and abs(c[1]-color[1]) < thresh and abs(c[2]-color[2]) < thresh:
-                            return True
-                    return False
-                width, height, _ = img.shape
-                for i in range(width // DIVS):
-                    for j in range(height // DIVS):
-                        pixels = img[i*DIVS:(i+1)*DIVS, j*DIVS:(j+1)*DIVS]
-                        avg = np.mean(pixels, axis=(0, 1))
-                        if not CloseEnough(avg):
-                            colors.append(avg)
-                print(len(colors))
-                # color elimination by repeating increasing the threshold
-                thresh = THRESH
-                while len(colors) > MAX_COLORS:
-                    thresh += 0.05
-                    newColors = []
-                    for color in colors:
-                        if not CloseEnough(color, True, thresh):
-                            newColors.append(color)
-                    colors = newColors
-
-                print(len(colors))
-                for i in range(width):
-                    for j in range(height):
-                        pixel = img[i, j]
-                        minDiff = float('inf')
-                        index = -1
-                        for k in range(len(colors)):
-                            diff = abs(
-                                pixel[0]-colors[k][0]) + abs(pixel[1]-colors[k][1]) + abs(pixel[2]-colors[k][2])
-                            if diff < minDiff:
-                                minDiff = diff
-                                index = k
-                        img[i, j] = colors[index]
-                cv2.imwrite('./results/img' + str(id + 1) +
-                            '_q1-3.png', img.astype(np.uint8))
-            # pool from nearing colors, and insert into colors if there does not exist a color that is too close
-        self.P3000 = P3000
-
-        @problem
-        def P33():
+        def P3(bar: alive_bar):
             MAX_COLORS = 16
             THRESH = 50
-            DIVS = 2
+            DIVS = 4
             imgs = [img.astype(np.float32) for img in self.images]
 
             def CloseEnough(color1, color2, flag=False, thresh=THRESH):
@@ -267,16 +90,14 @@ class Q1:
                         if flag:
                             colorPool.append([avg, defaultdict(int)])
                             colorPool[-1][1][rgb] += 1
+                colorPool = sorted(
+                    colorPool, key=lambda x: len(x[1]), reverse=True)
                 for color in colorPool:
-                    tmp = sorted(color[1].items(),
-                                 key=lambda x: x[1], reverse=True)
-                    # print([hex(color[0]) for color in tmp[:MAX_COLORS]])
-                    color[1] = None
                     color[1] = [colorPair[0]
-                                for colorPair in tmp[:MAX_COLORS]]
+                                for colorPair in sorted(color[1].items(),
+                                                        key=lambda x: x[1], reverse=True)[:MAX_COLORS]]
                 colors = []
                 poolID = 0
-                print(f"poolcount {len(colorPool)}")
                 while len(colors) < MAX_COLORS:
                     try:
                         colors.append(colorPool[poolID][1][0])
@@ -284,8 +105,7 @@ class Q1:
                         poolID = (poolID + 1) % len(colorPool)
                     colorPool[poolID][1].pop(0)
                     poolID = (poolID + 1) % len(colorPool)
-                # print color in hex format
-                # print([hex(color) for color in colors])
+                print(f"color platte: {[hex(color) for color in colors]}")
                 for i in range(width):
                     for j in range(height):
                         pixel = img[i, j]
@@ -304,18 +124,20 @@ class Q1:
                             (colors[index] >> 8) & 0xFF), (colors[index] & 0xFF)]
                 cv2.imwrite('./results/img' + str(id + 1) +
                             '_q1-3.png', img.astype(np.uint8))
-        self.P33 = P33
+                bar()
+        self.P3 = P3
 
     def Solve(self):
-        self.P1.Solve()
-        self.P2.Solve()
-        # self.P3.Solve()
-        self.P3ALTER.Solve()
+        with alive_bar(3 * 3, spinner='pulse') as bar:
+            self.P1.Solve(bar)
+            self.P2.Solve(bar)
+
+            self.P3.Solve(bar)
 
 
 class Q2():
     def __init__(self):
-        self.images = List[MatLike]
+        self.images = []
         for i in range(1, 4):
             self.images.append(cv2.imread('./images/img' + str(i) + '.png'))
 
@@ -387,8 +209,7 @@ class Q2():
 
 if __name__ == '__main__':
     q1 = Q1()
-    q1.P33.Solve()
-    # q2 = Q2()
-    # q1.Solve()
-    # q2.Solve()
+    q2 = Q2()
+    q1.Solve()
+    q2.Solve()
     print('Done')
