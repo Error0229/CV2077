@@ -22,7 +22,7 @@ class Q1:
             self.images.append(cv2.imread('./images/img' + str(i) + '.png'))
 
         @problem
-        def P1(bar: alive_bar):
+        def P1():
             imgs = deepcopy(self.images)
             for i in range(3):
                 for row in imgs[i]:
@@ -35,12 +35,11 @@ class Q1:
                         pixel[2] = grayScale
                 cv2.imwrite('./results/img' + str(i + 1) +
                             '_q1-1.png', imgs[i])
-                bar()
             self.grayScaled = imgs
         self.P1 = P1
 
         @problem
-        def P2(bar: alive_bar):
+        def P2():
             imgs = deepcopy(self.grayScaled)
             thresh = 128
             for i in range(3):
@@ -56,11 +55,10 @@ class Q1:
                             pixel[2] = 0
                 cv2.imwrite('./results/img' + str(i + 1) +
                             '_q1-2.png', imgs[i])
-                bar()
         self.P2 = P2
 
         @problem
-        def P3(bar: alive_bar):
+        def P3A():
             MAX_COLORS = 16
             THRESH = 50
             DIVS = 4
@@ -124,15 +122,88 @@ class Q1:
                             (colors[index] >> 8) & 0xFF), (colors[index] & 0xFF)]
                 cv2.imwrite('./results/img' + str(id + 1) +
                             '_q1-3.png', img.astype(np.uint8))
-                bar()
+        self.P3A = P3A
+
+        @problem
+        def P3():
+            MAX_COLORS = 16
+            THRESH = 50
+
+            def dis(c1, c2):
+                return np.linalg.norm(c1 - c2)
+
+            class group:
+                def __init__(self, represent=np.ndarray(3, dtype=np.uint8)):
+                    self.colors = [represent]
+                    self.represent = represent
+
+                def add(self, color):
+                    self.colors.append(color)
+                    self.represent = self.represent + \
+                        (color - self.represent) / len(self.colors)
+
+                def sort(self):
+                    self.colors = sorted(
+                        self.colors, key=lambda x: dis(x, self.represent))
+                    self.represent = self.colors[0]
+
+            imgs = [img.astype(np.float32) for img in self.images]
+            for mid, img in enumerate(imgs):
+                pool = []
+                width, height, _ = img.shape
+                AllTheColors = []
+                for i in range(width):
+                    for j in range(height):
+                        AllTheColors.append(img[i, j])
+                AllTheColors = np.array(AllTheColors)
+                # shuffle the colors
+                np.random.seed(125)
+                np.random.shuffle(AllTheColors)
+                with alive_bar(width*height, spinner='pulse') as bar:
+                    for pixel in AllTheColors:
+                        id = -1
+                        min_dis = float('inf')
+
+                        for pid, color in enumerate(pool):
+                            dist = dis(color.represent, pixel)
+                            if dist < min_dis:
+                                id = pid
+                                min_dis = dist
+                        if (len(pool) < MAX_COLORS and min_dis > THRESH):
+                            pool.append(group(pixel))
+                            THRESH = THRESH ** (1/1.01)
+                        else:
+                            pool[id].add(pixel)
+                        bar.text('Processing pixels ')
+                        bar()
+                for color in pool:
+                    color.sort()
+                    print(color.represent)
+
+                with alive_bar(width*height, spinner='pulse') as bar:
+                    for i in range(width):
+                        for j in range(height):
+                            pixel = img[i, j]
+                            min_dis = float('inf')
+                            index = -1
+                            for k in range(len(pool)):
+                                dist = dis(pool[k].represent, pixel)
+                                if dist < min_dis:
+                                    min_dis = dist
+                                    index = k
+                            img[i, j] = pool[index].represent
+                            bar()
+                            bar.text('Drawing pixel at ' +
+                                     str(i) + ' ' + str(j))
+                cv2.imwrite('./results/img' + str(mid + 1) +
+                            '_q1-3.png', img.astype(np.uint8))
         self.P3 = P3
 
     def Solve(self):
-        with alive_bar(3 * 3, spinner='pulse') as bar:
-            self.P1.Solve(bar)
-            self.P2.Solve(bar)
-
-            self.P3.Solve(bar)
+        self.P1.Solve()
+        self.P2.Solve()
+        self.P3.Solve()
+        # self.P3A.Solve()
 
 
 class Q2():
@@ -177,27 +248,29 @@ class Q2():
             imgs = [img.astype(np.float32) for img in imgs]
             for i in range(3):
                 # create a empty image with 2 times the size
-                result = np.zeros(
-                    (imgs[i].shape[0]*2, imgs[i].shape[1]*2, 3), dtype=np.float32)
-                for row in range(result.shape[0]):
-                    for col in range(result.shape[1]):
-                        x = col//2
-                        y = row//2
-                        x1 = x+1 if x+1 < imgs[i].shape[1] else x
-                        y1 = y+1 if y+1 < imgs[i].shape[0] else y
-                        result[row, col] = (imgs[i][y, x] + imgs[i][y, x1] +
-                                            imgs[i][y1, x] + imgs[i][y1, x1])/4
+                def BilinearInterpolation(img, scale):
+                    result = np.zeros(
+                        (int(img.shape[0]*scale), int(img.shape[1]*scale), 3), dtype=np.float32)
+                    for row in range(result.shape[0]):
+                        for col in range(result.shape[1]):
+                            origin_x = (row + 0.5) / scale - 0.5
+                            origin_y = (col + 0.5) / scale - 0.5
+                            x = int(origin_x)
+                            y = int(origin_y)
+                            dx = origin_x - x
+                            dy = origin_y - y
+                            x = max(0, min(x, img.shape[0] - 2))
+                            y = max(0, min(y, img.shape[1] - 2))
+                            dx = 1 if x >= img.shape[0] - 2 else 0
+                            dy = 1 if y >= img.shape[1] - 2 else 0
+                            result[row, col] = (1-dx)*(1-dy)*img[x, y] + dx*(1-dy)*img[x+1, y] + \
+                                (1-dx)*dy*img[x, y+1] + dx*dy*img[x+1, y+1]
+                    return result
+                result = BilinearInterpolation(imgs[i], 2)
                 cv2.imwrite('./results/img' + str(i + 1) +
                             '_q2-2-double.png', result.astype(np.uint8))
 
-                result = np.zeros(
-                    (imgs[i].shape[0]//2, imgs[i].shape[1]//2, 3), dtype=np.float32)
-                for row in range(result.shape[0]):
-                    for col in range(result.shape[1]):
-                        x = col*2
-                        y = row*2
-                        result[row, col] = (imgs[i][y, x] + imgs[i][y, x+1] +
-                                            imgs[i][y+1, x] + imgs[i][y+1, x+1])/4
+                result = BilinearInterpolation(imgs[i], 0.5)
                 cv2.imwrite('./results/img' + str(i + 1) +
                             '_q2-2-half.png', result.astype(np.uint8))
         self.P2 = P2
