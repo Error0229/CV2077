@@ -134,7 +134,7 @@ class Q:
             imgs = deepcopy(self.images)
             for i in range(4):
                 width, height, _ = imgs[i].shape
-                p = -1
+                p = int(0)
                 groups = defaultdict(int)
 
                 def find(x):
