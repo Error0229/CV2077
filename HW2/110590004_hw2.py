@@ -2,7 +2,9 @@ import cv2
 from collections import defaultdict
 from copy import deepcopy
 import numpy as np
-from alive_progress import alive_bar
+from alive_progress import alive_bar, config_handler
+
+config_handler.set_global(spinner='crab', bar='smooth')
 
 
 class Problem:
@@ -20,13 +22,23 @@ class Q:
         for i in range(1, 5):
             self.images.append(cv2.imread('./images/img' + str(i) + '.png'))
 
+            thresh = 0
             width, height, _ = self.images[i - 1].shape
             hist = [0] * 256
-            for row in range(width):
-                for col in range(height):
-                    self.images[i - 1][row][col] = [0.299 * self.images[i - 1][row][col][2] + 0.587 *
-                                                    self.images[i - 1][row][col][1] + 0.114 * self.images[i - 1][row][col][0]] * 3
-                    hist[int(self.images[i - 1][row][col][0])] += 1
+            print('grayscale img' + str(i) + '...')
+            with alive_bar(width * height) as bar:
+                for row in range(width):
+                    for col in range(height):
+                        self.images[i - 1][row][col] = [0.299 * self.images[i - 1][row][col][2] + 0.587 *
+                                                        self.images[i - 1][row][col][1] + 0.114 * self.images[i - 1][row][col][0]] * 3
+                        hist[int(self.images[i - 1][row][col][0])] += 1
+                        bar()
+            # Triangular threshold
+            # smooth the histogram
+            smooth = 12
+            for j in range(256):
+                hist[j] = sum(
+                    hist[max(0, j - smooth):min(256, j + smooth + 1)]) / (2 * smooth + 1)
             left_id = 0
             h_id = 0
             for j in range(256):
@@ -34,7 +46,6 @@ class Q:
                     left_id = j
                 if hist[j] > hist[h_id]:
                     h_id = j
-            thresh = 0
             a = (hist[h_id] - hist[left_id]) / (h_id - left_id)
             b = hist[left_id] - a * left_id
             max_val = 0
@@ -57,14 +68,19 @@ class Q:
                 plt.close()
             except ImportError:
                 print('Matplotlib not found, skipping histogram plot')
-            for row in range(width):
-                for col in range(height):
-                    if self.images[i - 1][row][col][0] > thresh:
-                        self.images[i - 1][row][col] = [255] * 3
-                    else:
-                        self.images[i - 1][row][col] = [0] * 3
-            cv2.imwrite('./debug/img' + str(i) +
-                        '_binary.png', self.images[i - 1])
+
+            print(f'Threshold for img{i}: {thresh}')
+            print(f'Binary img{i}...')
+            with alive_bar(width * height) as bar:
+                for row in range(width):
+                    for col in range(height):
+                        if self.images[i - 1][row][col][0] > thresh:
+                            self.images[i - 1][row][col] = [255] * 3
+                        else:
+                            self.images[i - 1][row][col] = [0] * 3
+                        bar()
+                cv2.imwrite('./debug/img' + str(i) +
+                            '_binary.png', self.images[i - 1])
 
         @problem
         def P1():
@@ -85,36 +101,38 @@ class Q:
                 def union(x, y):
                     groups[find(x)] = find(y)
                 compMap = np.zeros((width, height))
+                print(f'4-connected way, img{i+1}...')
+                with alive_bar(width * height) as bar:
+                    for row in range(width):
+                        for col in range(height):
+                            bar()
+                            if imgs[i][row][col][0] == 255:
+                                continue
 
-                for row in range(width):
-                    for col in range(height):
-                        if imgs[i][row][col][0] == 255:
-                            continue
-
-                        u = find(compMap[row - 1][col])
-                        l = find(compMap[row][col - 1])
-                        if row == 0:
-                            u = 0
-                        if col == 0:
-                            l = 0
-                        if u == 0 and l == 0:
-                            p += 1
-                            compMap[row][col] = p
-                            groups[p] = p
-                        elif u == 0:
-                            compMap[row][col] = l
-                        elif l == 0:
-                            compMap[row][col] = u
-                        else:
-                            compMap[row][col] = l
-                            if u != l:
-                                union(u, l)
+                            u = find(compMap[row - 1][col])
+                            l = find(compMap[row][col - 1])
+                            if row == 0:
+                                u = 0
+                            if col == 0:
+                                l = 0
+                            if u == 0 and l == 0:
+                                p += 1
+                                compMap[row][col] = p
+                                groups[p] = p
+                            elif u == 0:
+                                compMap[row][col] = l
+                            elif l == 0:
+                                compMap[row][col] = u
+                            else:
+                                compMap[row][col] = l
+                                if u != l:
+                                    union(u, l)
                 s = set()
                 for w in range(1, p + 1):
                     s.add(find(w))
                 total = len(s)
-                print('Total objects:', total)
-                np.random.seed(0)
+                print(f'4-connected way, img{i+1}: Total objects:', total)
+                np.random.seed(125)
                 colors = {}
                 for c in s:
                     colors[c] = [np.random.randint(0, 256) for _ in range(3)]
@@ -147,66 +165,68 @@ class Q:
                 def union(x, y):
                     groups[find(x)] = find(y)
                 compMap = np.zeros((width, height))
+                print(f'8-connected way, img{i+1}...')
+                with alive_bar(width * height) as bar:
 
-                for row in range(width):
-                    for col in range(height):
-                        if imgs[i][row][col][0] == 255:
-                            continue
+                    for row in range(width):
+                        for col in range(height):
+                            bar()
+                            if imgs[i][row][col][0] == 255:
+                                continue
 
-                        u = ul = ur = l = 0
-                        if row > 0:
-                            u = find(compMap[row - 1][col])
-                        if row > 0 and col > 0:
-                            ul = find(compMap[row - 1][col - 1])
-                        if row > 0 and col < height - 1:
-                            ur = find(compMap[row - 1][col + 1])
-                        if col > 0:
-                            l = find(compMap[row][col - 1])
-                        if u == 0 and l == 0 and ul == 0 and ur == 0:
-                            p += 1
-                            compMap[row][col] = p
-                            groups[p] = p
-                        elif u == 0 and ul == 0 and ur == 0:
-                            compMap[row][col] = l
-                        elif l == 0 and ul == 0 and ur == 0:
-                            compMap[row][col] = u
-                        elif u == 0 and l == 0 and ur == 0:
-                            compMap[row][col] = ul
-                        elif u == 0 and l == 0 and ul == 0:
-                            compMap[row][col] = ur
-                        elif l == 0 and u == 0:
-                            compMap[row][col] = ul
-                            union(ul, ur)
-                        elif l == 0 and ul == 0:
-                            compMap[row][col] = u
-                        elif l == 0 and ur == 0:
-                            compMap[row][col] = u
-                        elif u == 0 and ul == 0:
-                            compMap[row][col] = l
-                            union(l, ur)
-                        elif u == 0 and ur == 0:
-                            compMap[row][col] = l
-                        elif ul == 0 and ur == 0:
-                            compMap[row][col] = l
-                            union(l, u)
-                        elif u == 0:
-                            compMap[row][col] = l
-                            union(l, ur)
-                        elif l == 0:
-                            compMap[row][col] = u
-                        elif ul == 0:
-                            compMap[row][col] = ur
-                        elif ur == 0:
-                            compMap[row][col] = ul
-                        else:
-                            compMap[row][col] = l
-
+                            u = ul = ur = l = 0
+                            if row > 0:
+                                u = find(compMap[row - 1][col])
+                            if row > 0 and col > 0:
+                                ul = find(compMap[row - 1][col - 1])
+                            if row > 0 and col < height - 1:
+                                ur = find(compMap[row - 1][col + 1])
+                            if col > 0:
+                                l = find(compMap[row][col - 1])
+                            if u == 0 and l == 0 and ul == 0 and ur == 0:
+                                p += 1
+                                compMap[row][col] = p
+                                groups[p] = p
+                            elif u == 0 and ul == 0 and ur == 0:
+                                compMap[row][col] = l
+                            elif l == 0 and ul == 0 and ur == 0:
+                                compMap[row][col] = u
+                            elif u == 0 and l == 0 and ur == 0:
+                                compMap[row][col] = ul
+                            elif u == 0 and l == 0 and ul == 0:
+                                compMap[row][col] = ur
+                            elif l == 0 and u == 0:
+                                compMap[row][col] = ul
+                                union(ul, ur)
+                            elif l == 0 and ul == 0:
+                                compMap[row][col] = u
+                            elif l == 0 and ur == 0:
+                                compMap[row][col] = u
+                            elif u == 0 and ul == 0:
+                                compMap[row][col] = l
+                                union(l, ur)
+                            elif u == 0 and ur == 0:
+                                compMap[row][col] = l
+                            elif ul == 0 and ur == 0:
+                                compMap[row][col] = l
+                                union(l, u)
+                            elif u == 0:
+                                compMap[row][col] = l
+                                union(l, ur)
+                            elif l == 0:
+                                compMap[row][col] = u
+                            elif ul == 0:
+                                compMap[row][col] = ur
+                            elif ur == 0:
+                                compMap[row][col] = ul
+                            else:
+                                compMap[row][col] = l
                 s = set()
-                for w in range(p + 1):
+                for w in range(1, p + 1):
                     s.add(find(w))
                 total = len(s)
-                print('Total objects:', total)
-                np.random.seed(0)
+                print(f'8-connected way, img{i+1}: Total objects:', total)
+                np.random.seed(125)
                 colors = {}
                 for c in s:
                     colors[c] = [np.random.randint(0, 256) for _ in range(3)]
