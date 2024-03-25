@@ -25,7 +25,7 @@ class Q:
             thresh = 0
             width, height, _ = self.images[i - 1].shape
             hist = [0] * 256
-            print('grayscale img' + str(i) + '...')
+            print('Grayscaling img' + str(i) + '...')
             with alive_bar(width * height) as bar:
                 for row in range(width):
                     for col in range(height):
@@ -70,7 +70,7 @@ class Q:
                 print('Matplotlib not found, skipping histogram plot')
 
             print(f'Threshold for img{i}: {thresh}')
-            print(f'Binary img{i}...')
+            print(f'Thresholding img{i}...')
             with alive_bar(width * height) as bar:
                 for row in range(width):
                     for col in range(height):
@@ -131,7 +131,7 @@ class Q:
                 for w in range(1, p + 1):
                     s.add(find(w))
                 total = len(s)
-                print(f'4-connected way, img{i+1}: Total objects:', total)
+                print(f'4-connected way, img{i+1}: {total} components')
                 np.random.seed(125)
                 colors = {}
                 for c in s:
@@ -225,7 +225,7 @@ class Q:
                 for w in range(1, p + 1):
                     s.add(find(w))
                 total = len(s)
-                print(f'8-connected way, img{i+1}: Total objects:', total)
+                print(f'8-connected way, img{i+1}: {total} components')
                 np.random.seed(125)
                 colors = {}
                 for c in s:
