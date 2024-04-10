@@ -64,6 +64,10 @@ class Q:
                 plt.title('Histogram')
                 plt.xlabel('Intensity')
                 plt.ylabel('Frequency')
+                # create the folder if not exist
+                import os
+                if not os.path.exists('./debug'):
+                    os.makedirs('./debug')
                 plt.savefig('./debug/img' + str(i) + '_histogram.png')
                 plt.close()
             except ImportError:
@@ -79,6 +83,9 @@ class Q:
                         else:
                             self.images[i - 1][row][col] = [0] * 3
                         bar()
+                import os
+                if not os.path.exists('./debug'):
+                    os.makedirs('./debug')
                 cv2.imwrite('./debug/img' + str(i) +
                             '_binary.png', self.images[i - 1])
 
