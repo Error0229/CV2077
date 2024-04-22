@@ -18,9 +18,9 @@ def problem(func):
 
 class Q:
     def __init__(self):
-        self.origin_images = [cv2.imread(
-            './images/img' + str(i) + '.jpg') for i in range(1, 5)]
-        # self.origin_images = [cv2.imread('./images/test_32.png')]
+        # self.origin_images = [cv2.imread(
+        #     './images/img' + str(i) + '.jpg') for i in range(1, 5)]
+        self.origin_images = [cv2.imread('./images/test_32.png')]
         self.images = []
         for i in range(1, self.origin_images.__len__() + 1):
             thresh = 0
@@ -217,7 +217,7 @@ class Q:
                     return feature_points
                 # result = deepcopy(f0)
                 LR_Cdt = np.zeros((width, height))
-                f_pre = deepcopy(f0)
+                f_pre = 1 - deepcopy(f0)
                 local_max = np.zeros((width, height))
                 while True:
                     flag = 0
@@ -239,10 +239,10 @@ class Q:
                 # LR_Cdt[-1, :] = 0
                 # LR_Cdt[:, -1] = 0
                 MAT = LR_Cdt  
-                # for row in range(width):
-                #     for col in range(height):
-                #         print(int(MAT[row][col]), end=' ')
-                #     print()
+                for row in range(width):
+                    for col in range(height):
+                        print(int(MAT[row][col]), end=' ')
+                    print()
                 result = np.zeros((width, height))
                 for row in range(width):
                     for col in range(height):
