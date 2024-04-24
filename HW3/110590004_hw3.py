@@ -135,13 +135,13 @@ class Q:
             if np.sum(neighbors[:, 0]) != 0 and np.sum(neighbors[:, 2]) != 0 and np.sum(neighbors[:, 1]) == 0:
                 return True
             # analog corner conditions
-            if neighbors[0, 0] != 0 and neighbors[2, 2] != 0 and neighbors[1, 2] == 0 and neighbors[2, 1] == 0 and neighbors[0, 1] != 0 and neighbors[1, 0] != 0:
+            if neighbors[2, 2] != 0 and neighbors[1, 2] == 0 and neighbors[2, 1] == 0 and neighbors[0, 1] != 0 and neighbors[1, 0] != 0:
                 return True
-            if neighbors[0,0 ] != 0 and neighbors[2, 2] != 0 and neighbors[1, 0] == 0 and neighbors[0, 1] == 0 and neighbors[1, 2] != 0 and neighbors[2, 1] != 0:
+            if neighbors[0, 0] != 0 and neighbors[1, 0] == 0 and neighbors[0, 1] == 0 and neighbors[1, 2] != 0 and neighbors[2, 1] != 0:
                 return True
-            if neighbors[0, 2] != 0 and neighbors[2, 0] != 0 and neighbors[1, 0] == 0 and neighbors[2, 1] == 0 and neighbors[0, 1] != 0 and neighbors[1, 2] != 0:
+            if neighbors[2, 0] != 0 and neighbors[1, 0] == 0 and neighbors[2, 1] == 0 and neighbors[0, 1] != 0 and neighbors[1, 2] != 0:
                 return True
-            if neighbors[0, 2] != 0 and neighbors[2, 0] != 0 and neighbors[1, 2] == 0 and neighbors[0, 1] == 0 and neighbors[1, 0] != 0 and neighbors[2, 1] != 0:
+            if neighbors[0, 2] != 0 and neighbors[1, 2] == 0 and neighbors[0, 1] == 0 and neighbors[1, 0] != 0 and neighbors[2, 1] != 0:
                 return True
             return False
 
@@ -211,54 +211,7 @@ class Q:
                 #     temp[point[0], point[1]] = [255, 255, 255]
                 # cv2.imwrite('./debug/img' + str(i + 1) + '_boundary.jpg', temp)
                 # # print('Boundary points:', boundary_points)
-
-                def chessboard_distance(p1, p2):
-                    return max(abs(p1[0] - p2[0]), abs(p1[1] - p2[1]))
-
-                # def find_feature_points(p, distance):
-                #     feature_points = set()
-                #     for point in boundary_points:
-                #         if chessboard_distance(p, point) == distance:
-                #             feature_points.add(point)
-                #     return feature_points
-                result = deepcopy(fm)
-                # LR_Cdt = np.zeros((width, height))
-                # f_pre = 1 - deepcopy(f0)
-                # local_max = np.zeros((width, height))
-                # while True:
-                #     flag = 0
-                #     with alive_bar(width * height) as bar:
-                #         for row in range(width):
-                #             for col in range(height):
-                #                 if f0[row][col] == 0:
-                #                     bar()
-                #                     continue
-                #                 neighbors = get_neighbors_8(
-                #                     f_pre, row, col, width, height)
-                #                 LR_Cdt[row, col] = f0[row, col] + min(neighbors[2, 2], neighbors[2, 1], neighbors[1, 2])
-                #                 if LR_Cdt[row][col] != f_pre[row][col]:
-                #                     flag = 1
-                #                 bar()
-                #     f_pre = deepcopy(LR_Cdt)
-                #     if flag == 0:
-                #         break
-                # # LR_Cdt[-1, :] = 0
-                # # LR_Cdt[:, -1] = 0
-                # MAT = LR_Cdt
-                # for row in range(width):
-                #     for col in range(height):
-                #         print(int(MAT[row][col]), end=' ')
-                #     print()
-                # result = np.zeros((width, height))
-                # for row in range(width):
-                #     for col in range(height):
-                #         if (MAT[row][col] == 0):
-                #             result[row][col] = 0
-                #             continue
-                #         neighbors = get_neighbors_8(MAT, row, col, width, height)
-                #         if(max(neighbors[0,0], neighbors[0,1], neighbors[1,0]) <= MAT[row][col]):
-                #             result[row][col] = 1
-
+                result = deepcopy(f0)
                 print('Skeletonizing...')
                 max_h = int(np.max(fm))
                 for h in range(1, max_h + 1):
@@ -280,12 +233,45 @@ class Q:
                                     if critical(get_neighbors_8(result, row, col, width, height)):
                                         result[row, col] = 1
                                 bar()
+                # thinning
+                k1 = np.array([[0, 0, 0], [-1, 1, -1], [1, 1, 1]])
+                k2 = np.array([[-1, 0, 0], [1, 1, 0], [-1, 1, -1]])
+                # rotate k1, k2 for 3 times
+                SE1 = []
+                SE2 = []
+                for _ in range(4):
+                    SE1.append(k1)
+                    SE2.append(k2)
+                    k1 = np.rot90(k1)
+                    k2 = np.rot90(k2)
+
+                def check_SE(kernel, qd, se):
+                    se1 = se[qd]
+                    for x in range(3):
+                        for y in range(3):
+                            if se1[x][y] == -1:
+                                continue
+                            if kernel[x][y] != se1[x][y]:
+                                return False
+                    return True
+                for q in range(4):
+                    for row in range(width):
+                        for col in range(height):
+                            if result[row][col] == 0:
+                                continue
+                            if check_SE(get_neighbors_8(result, row, col, width, height), q, SE1):
+                                result[row][col] = 0
+                    for row in range(width):
+                        for col in range(height):
+                            if result[row][col] == 0:
+                                continue
+                            if check_SE(get_neighbors_8(result, row, col, width, height), q, SE2):
+                                result[row][col] = 0
                 for row in range(width):
                     for col in range(height):
                         result[row][col] = 0 if result[row][col] == 0 else 255
 
                 cv2.imwrite('./results/img' + str(i + 1) + '_q1-2.jpg', result)
-
         self.P1 = P1
 
         @problem
