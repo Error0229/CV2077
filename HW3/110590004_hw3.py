@@ -254,19 +254,21 @@ class Q:
                             if kernel[x][y] != se1[x][y]:
                                 return False
                     return True
-                for q in range(4):
-                    for row in range(width):
-                        for col in range(height):
-                            if result[row][col] == 0:
-                                continue
-                            if check_SE(get_neighbors_8(result, row, col, width, height), q, SE1):
-                                result[row][col] = 0
-                    for row in range(width):
-                        for col in range(height):
-                            if result[row][col] == 0:
-                                continue
-                            if check_SE(get_neighbors_8(result, row, col, width, height), q, SE2):
-                                result[row][col] = 0
+
+                for  _ in range(2):
+                    for q in range(4):
+                        for row in range(width):
+                            for col in range(height):
+                                if result[row][col] == 0:
+                                    continue
+                                if check_SE(get_neighbors_8(result, row, col, width, height), q, SE1):
+                                    result[row][col] = 0
+                        for row in range(width):
+                            for col in range(height):
+                                if result[row][col] == 0:
+                                    continue
+                                if check_SE(get_neighbors_8(result, row, col, width, height), q, SE2):
+                                    result[row][col] = 0
                 for row in range(width):
                     for col in range(height):
                         result[row][col] = 0 if result[row][col] == 0 else 255
