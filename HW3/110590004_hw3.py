@@ -1,5 +1,4 @@
 import cv2
-from collections import defaultdict
 from copy import deepcopy
 import numpy as np
 from alive_progress import alive_bar, config_handler
@@ -39,7 +38,7 @@ class Q:
                 self.images.append(image)
             # Triangular threshold
             # smooth the histogram
-            smooth = 12
+            smooth = 10
             for j in range(256):
                 hist[j] = sum(
                     hist[max(0, j - smooth):min(256, j + smooth + 1)]) / (2 * smooth + 1)
@@ -117,18 +116,6 @@ class Q:
                 result[1, 2] = image[i, j + 1]
             return result
 
-        def get_neighbors_corner(image, i, j, width, height):  # get corner neighbors
-            result = np.zeros((3, 3))
-            if i - 1 >= 0 and j - 1 >= 0:
-                result[0, 0] = image[i - 1, j - 1]
-            if i - 1 >= 0 and j + 1 < height:
-                result[0, 2] = image[i - 1, j + 1]
-            if i + 1 < width and j - 1 >= 0:
-                result[2, 0] = image[i + 1, j - 1]
-            if i + 1 < width and j + 1 < height:
-                result[2, 2] = image[i + 1, j + 1]
-            return result
-
         def critical(neighbors):
             if np.sum(neighbors[0, :]) != 0 and np.sum(neighbors[2, :]) != 0 and np.sum(neighbors[1, :]) == 0:
                 return True
@@ -149,7 +136,6 @@ class Q:
         def P1():
             imgs = deepcopy(self.images)
             # 8-distance transform
-            print('8-distance transform...')
             for i in range(imgs.__len__()):
                 max_h = 0
                 width, height = imgs[i].shape
@@ -160,12 +146,13 @@ class Q:
                             f0[row][col] = 0
                         else:
                             f0[row][col] = 1
+                f_pre_8 = deepcopy(f0)
                 f_pre = deepcopy(f0)
                 fm = np.zeros((width, height))
-                local_max = np.zeros((width, height))
+                fm_8 = np.zeros((width, height))
+                print('distance transform...')
                 while True:
                     flag = 0
-                    local_max = np.zeros((width, height))
                     with alive_bar(width * height) as bar:
                         for row in range(width):
                             for col in range(height):
@@ -176,41 +163,28 @@ class Q:
                                     f_pre, row, col, width, height)
                                 fm[row, col] = f0[row, col] + min(
                                     neighbors[0, 1], neighbors[1, 0], neighbors[1, 2], neighbors[2, 1])
-                                local_max[row, col] = 1 if fm[row,
-                                                              col] >= np.max(neighbors) else 0
-                                if fm[row][col] != f_pre[row][col]:
+                                neighbors_8 = get_neighbors_8(
+                                    f_pre_8, row, col, width, height)
+                                fm_8[row, col] = f0[row, col] + np.min(neighbors_8)
+                                if fm[row][col] != f_pre[row][col] or fm_8[row][col] != f_pre_8[row][col]:
                                     flag = 1
                                 bar()
                     f_pre = deepcopy(fm)
-
+                    f_pre_8 = deepcopy(fm_8)
                     if flag == 0:
                         break
                 temp = np.zeros((width, height, 3))
+                temp_8 = np.zeros((width, height, 3))
                 for row in range(width):
                     for col in range(height):
-                        # print(int(fm[row][col]), end=' ')
                         temp[row][col] = 0 if fm[row][col] == 0 else fm[row][col] * \
                             255 / np.max(fm)
-                    # print()
-                cv2.imwrite('./results/img' + str(i + 1) + '_q1-1.jpg', temp)
+                        temp_8[row][col] = 0 if fm_8[row][col] == 0 else fm_8[row][col] * \
+                            255 / np.max(fm_8)
+                cv2.imwrite('./results/img' + str(i + 1) + '_q1-1_4.jpg', temp)
+                cv2.imwrite('./results/img' + str(i + 1) + '_q1-1_8.jpg', temp_8)
 
-                # boundary_points = set()
-                # for row in range(width):
-                #     for col in range(height):
-                #         if (fm[row][col] != 1):
-                #             continue
-                #         neighbors = get_neighbors_8(
-                #             fm, row, col, width, height)
-                #         for x in range(-1, 2):
-                #             for y in range(-1, 2):
-                #                 if neighbors[x + 1][y + 1] == 0 and (row + x >= 0 and row + x < width and col + y >= 0 and col + y < height):
-                #                     boundary_points.add((row + x, col + y))
-                # draw boundary points
-                # temp = np.zeros((width, height, 3))
-                # for point in boundary_points:
-                #     temp[point[0], point[1]] = [255, 255, 255]
-                # cv2.imwrite('./debug/img' + str(i + 1) + '_boundary.jpg', temp)
-                # # print('Boundary points:', boundary_points)
+
                 result = deepcopy(f0)
                 print('Skeletonizing...')
                 max_h = int(np.max(fm))
@@ -221,13 +195,8 @@ class Q:
                                 if (fm[row][col] != h):
                                     bar()
                                     continue
-                                # F = find_feature_points((row, col), fm[row][col])
-                                # if len(F) >= 8:
-                                #     result[row, col] = 1
                                 neighbors = get_neighbors_8(
                                     fm, row, col, width, height)
-                                # if (max(neighbors[0, 0], neighbors[0, 1], neighbors[1, 0]) < fm[row, col]):
-                                #     result[row, col] = 1
                                 if (fm[row, col] < np.max(neighbors)):
                                     result[row, col] = 0
                                     if critical(get_neighbors_8(result, row, col, width, height)):
@@ -276,14 +245,9 @@ class Q:
                 cv2.imwrite('./results/img' + str(i + 1) + '_q1-2.jpg', result)
         self.P1 = P1
 
-        @problem
-        def P2():
-            imgs = deepcopy(self.origin_images)
-        self.P2 = P2
 
     def Solve(self):
         self.P1.Solve()
-        self.P2.Solve()
 
 
 if __name__ == '__main__':
