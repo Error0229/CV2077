@@ -22,22 +22,15 @@ class Q:
             './images/img' + str(i) + '.jpg') for i in range(1, 4)]
         self.images = []
         self.labels = [
-            ["a349a4", "00a2e8", "fff200", "b97a57"], ["ff7f27", "fff200", "22b14c", "00a218", "3f48cc", "a349a4",
-                                                       "b97a57", "ffaec9", "ffc90e", "efe4b0", "b5e61d", "99d9ea", "ed1c24"], ["a349a4", "3f48cc", "ed1c24"]
+            ["a349a4", "00a2e8", "fff200", "b97a57"], ["ff7f27", "fff200", "22b14c", "00a2e8", "3f48cc", "a349a4",
+                                                       "b97a57", "ffaec9", "ffc90e", "efe4b0", "b5e61d", "99d9ea", "880015"], ["a349a4", "3f48cc", "ed1c24"]
         ]
-        for i in range(1, self.origin_images.__len__() + 1):
-            thresh = 0
-            width, height, _ = self.origin_images[i - 1].shape
-            hist = [0] * 256
-            image = np.zeros((width, height))
-            for row in range(width):
-                for col in range(height):
-                    image[row, col] = 0.299 * self.origin_images[i - 1][row][col][2] + 0.587 * \
-                        self.origin_images[i - 1][row][col][1] + \
-                        0.114 * self.origin_images[i - 1][row][col][0]
-                    hist[int(image[row, col])] += 1
-            self.images.append(image)
-
+        for i in range(1, 4):
+            img = np.zeros((self.origin_images[i - 1].shape[0], self.origin_images[i - 1].shape[1], 3))
+            for row in range(self.origin_images[i - 1].shape[0]):
+                for col in range(self.origin_images[i - 1].shape[1]):
+                    img[row][col] = self.origin_images[i - 1][row][col]
+            self.images.append(img)
         @problem
         def P1():
             class PriorityQueue:
@@ -57,7 +50,7 @@ class Q:
             def water_shed(image, id):
                 seeds = []
                 pq = PriorityQueue()
-                width, height = image.shape
+                width, height, _ = image.shape
                 land = np.zeros((width, height))
                 labeled_image = cv2.imread("./images/img" + str(id) + "_q1-1.png")
                 mapping = {}
@@ -73,9 +66,34 @@ class Q:
                         if(labeled_image[row][col][0], labeled_image[row][col][1], labeled_image[row][col][2]) in mapping:
                             land[row][col] = mapping[(labeled_image[row][col][0], labeled_image[row][col][1], labeled_image[row][col][2])]
                             seeds.append((row, col))
-                            mapping.pop((labeled_image[row][col][0], labeled_image[row][col][1], labeled_image[row][col][2]))
+                            # mapping.pop((labeled_image[row][col][0], labeled_image[row][col][1], labeled_image[row][col][2]))
+                def get_8_neighbors(img, x, y):
+                    neighbors = []
+                    if x > 0:
+                        neighbors.append((x - 1, y))
+                        if y > 0:
+                            neighbors.append((x - 1, y - 1))
+                        if y < img.shape[1] - 1:
+                            neighbors.append((x - 1, y + 1))
+                    if x < img.shape[0] - 1:
+                        neighbors.append((x + 1, y))
+                        if y > 0:
+                            neighbors.append((x + 1, y - 1))
+                        if y < img.shape[1] - 1:
+                            neighbors.append((x + 1, y + 1))
+                    if y > 0:
+                        neighbors.append((x, y - 1))
+                    if y < img.shape[1] - 1:
+                        neighbors.append((x, y + 1))
+                    return np.array(neighbors)
+                def distance(c1, c2):
+                    return np.sqrt(np.sum((c1 - c2) ** 2))
+                def priority(x, y, image):
+                    neighbors = get_8_neighbors(image, x, y)
+                    colors = [image[n[0]][n[1]] for n in neighbors] + [image[x][y]]
+                    return distance(np.max(colors, axis=0), np.min(colors, axis=0))
                 for seed in seeds:
-                    pq.push(seed, image[seed[0]][seed[1]])
+                    pq.push(seed, priority(seed[0], seed[1], image))
                 def get_neighbors(img, x, y):
                     neighbors = []
                     if x > 0:
@@ -88,15 +106,13 @@ class Q:
                         neighbors.append((x, y + 1))
                     return np.array(neighbors)
                 cn = 0
+                arc = []
                 while not pq.empty():
                     cn += 1
                     x, y = pq.pop()
                     neighbors = get_neighbors(land, x, y) 
-                    if cn %10000 ==0 :
-                        print(x, y, cn, pq.size(), land[x, y])
-                        for n in neighbors:
-                            print(n, land[n[0]][n[1]])
-                        pass
+                    if cn %1000 ==0 :
+                        arc.append(deepcopy(land))
                     neighbors = np.array([n for n in neighbors if land[n[0]][n[1]] >= 0])
                     if land[x, y] == -2:
                         # if there are different labels in the neighbors, then the pixel is a boundary
@@ -108,13 +124,30 @@ class Q:
                     for n in neighbors:
                         if land[n[0]][n[1]] == 0:
                             land[n[0]][n[1]] = -2
-                            pq.push((n[0], n[1]), image[n[0]][n[1]])
+                            pq.push((n[0], n[1]), priority(n[0], n[1], image))
                         
-                return land, label_map
+                return land, label_map, arc
             for i in range(1, 4):
-                land, lm = water_shed(self.images[i - 1], i)
+                land, lm, arc = water_shed(self.images[i - 1], i)
                 origin = deepcopy(self.origin_images[i - 1])
                 width, height, _ = origin.shape
+                # make a mp4 of the process
+                frames = []
+                for a in arc:
+                    frame = deepcopy(origin)
+                    for row in range(width):
+                        for col in range(height):
+                            if a[row][col] == -1:
+                                frame[row][col] = [0, 0, 0]
+                            elif a[row][col] > 0:
+                                frame[row][col] = lm[a[row][col]]
+                    frames.append(frame)
+                fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+                out = cv2.VideoWriter("./images/img" + str(i) + "_q1-3.mp4", fourcc, 10, (height, width)) 
+                for frame in frames:
+                    out.write(frame)
+                out.release()
+
                 # color regions
                 for row in range(width):
                     for col in range(height):
