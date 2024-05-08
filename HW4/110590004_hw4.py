@@ -129,7 +129,7 @@ class Q:
                     return np.sqrt(gx ** 2 + gy ** 2)
 
                 def priority(x, y, image, group_mean_color):
-                    neighbors = get_n_neighbors(image, x, y, 1)
+                    neighbors = get_n_neighbors(image, x, y, 3)
                     # Only consider labeled neighbors
                     colors = [image[n[0], n[1]] for n in neighbors]
 
@@ -144,8 +144,8 @@ class Q:
 
                     # Adjust weights for each component based on your image specifics and desired segmentation sharpness
                     # priority_value = 0.5 * color_distance + 0.5 * color_variance + 0.1 * group_distance + 0.1 * sobel(x, y, image)
-                    priority_value = 1 * sobel(
-                        x, y, image) + 0.5 * color_distance + 1 * color_variance
+                    priority_value = 0.5 * sobel(
+                        x, y, image) + 1* color_distance + 0.5 * color_variance
                     # print(priority_value, sobel(x, y, image), color_distance,
                     #       color_variance, group_distance)
                     return priority_value
