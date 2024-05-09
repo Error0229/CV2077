@@ -80,21 +80,37 @@ class Q:
                     bgr = (rgb & 0xff, (rgb >> 8) & 0xff, (rgb >> 16) & 0xff)
                     mapping[bgr] = i + 1
                     label_map[i + 1] = bgr
-                group_mean = {}
+                class Group:
+                    def __init__(self, label):
+                        self.label = label
+                        self.mean = np.zeros(3)
+                        self.var = 0
+                        self.ex2 = 0
+                        self.size = 0
+                    def add(self, color):
+                        self.mean = (self.mean * self.size + color) / (self.size + 1)
+                        self.ex2 = (self.ex2 * self.size + color ** 2) / (self.size + 1)
+                        self.var = self.ex2 - self.mean ** 2 
+                        self.size += 1
+                    def get_mean(self):
+                        return self.mean
+                    def get_var(self):
+                        return self.var
+                groups = {}
                 for row in range(width):
                     for col in range(height):
                         if (labeled_image[row][col][0], labeled_image[row][col][1], labeled_image[row][col][2]) in mapping:
                             land[row][col] = mapping[(
                                 labeled_image[row][col][0], labeled_image[row][col][1], labeled_image[row][col][2])]
                             seeds.append((row, col))
-                            mean, cnt = group_mean.get(
-                                land[row][col], (np.zeros(3), 0))
-                            group_mean[land[row][col]] = (
-                                cnt * mean + image[row][col]) / (cnt + 1), cnt + 1
+                            g = groups.get(land[row][col], Group(land[row][col]))
+                            g.add(image[row][col])
+                            groups[land[row][col]] = g
 
                 def legal(x, y, w, h):
                     return x >= 0 and y >= 0 and x < w and y < h
-
+                def uniqueness(color):
+                    return np.std(color)
                 def get_n_neighbors(img, x, y, n=1):
                     neighbors = []
                     width, height, _ = img.shape
@@ -127,8 +143,7 @@ class Q:
                     gx = np.sum(sobelX * k)
                     gy = np.sum(sobelY * k)
                     return np.sqrt(gx ** 2 + gy ** 2)
-
-                def priority(x, y, image, group_mean_color):
+                def priority(x, y, image, group : Group):
                     neighbors = get_n_neighbors(image, x, y, 3)
                     # Only consider labeled neighbors
                     colors = [image[n[0], n[1]] for n in neighbors]
@@ -140,19 +155,18 @@ class Q:
                     color_variance = np.var(colors, axis=0).sum()
 
                     color_distance = distance(image[x, y], mean_color)
-                    group_distance = distance(image[x, y], group_mean_color)
+                    group_distance = distance(image[x, y], group.get_mean())
 
                     # Adjust weights for each component based on your image specifics and desired segmentation sharpness
                     # priority_value = 0.5 * color_distance + 0.5 * color_variance + 0.1 * group_distance + 0.1 * sobel(x, y, image)
                     priority_value = 0.5 * sobel(
-                        x, y, image) + 1* color_distance + 0.5 * color_variance
+                        x, y, image) +  0.5* color_distance + 0.5 * color_variance + 0.05 * group.get_var().sum()
                     # print(priority_value, sobel(x, y, image), color_distance,
                     #       color_variance, group_distance)
                     return priority_value
-
                 for seed in seeds:
                     pq.push(seed, priority(
-                        seed[0], seed[1], image, group_mean[land[seed[0]][seed[1]]][0]))
+                        seed[0], seed[1], image, groups[land[seed[0]][seed[1]]])) 
 
                 def get_neighbors(img, x, y):
                     neighbors = []
@@ -187,15 +201,12 @@ class Q:
                             else:
                                 land[x][y] = np.max(
                                     [land[n[0]][n[1]] for n in neighbors])
-                                mean, cnt = group_mean.get(
-                                    land[x][y], (np.zeros(3), 0))
-                                group_mean[land[x][y]] = (
-                                    cnt * mean + image[x][y]) / (cnt + 1), cnt + 1
+                                groups[land[x][y]].add(image[x][y])
                         for n in neighbors:
                             if land[n[0]][n[1]] == 0:
                                 land[n[0]][n[1]] = -2
                                 pq.push((n[0], n[1]), priority(
-                                    n[0], n[1], image, group_mean[land[x][y]][0]))
+                                    n[0], n[1], image, groups[land[x][y]]))
 
                         bar()
                 return land, label_map, arc
