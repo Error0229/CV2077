@@ -88,10 +88,8 @@ class Q:
                 median_7 = median_filter(self.images[i - 1], 7)
                 cv2.imwrite(f'./results/img{i}_q2_3.jpg', median_3)
                 cv2.imwrite(f'./results/img{i}_q2_7.jpg', median_7)
-                gaussian_3 = gaussian_filter(self.images[i - 1], 3)
-                gaussian_7 = gaussian_filter(self.images[i - 1], 7)
-                cv2.imwrite(f'./results/img{i}_q3_3.jpg', gaussian_3)
-                cv2.imwrite(f'./results/img{i}_q3_7.jpg', gaussian_7)
+                gaussian_5 = gaussian_filter(self.images[i - 1], 5)
+                cv2.imwrite(f'./results/img{i}_q3.jpg', gaussian_5)
         self.P1 = P1
 
     def Solve(self):
