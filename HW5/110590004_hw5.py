@@ -76,6 +76,12 @@ class Q:
                         result[row][col] = np.sum(neighbors * kernel)
                         bar()
             return result
+        def svd(image):
+            U, S, V = np.linalg.svd(image, full_matrices=False)
+            # only keep the first 50 singular values
+            S[20:] = 0
+            return U @ np.diag(S) @ V
+        
         @problem
         def P1():
             for i in range(1, 4):
@@ -90,6 +96,8 @@ class Q:
                 cv2.imwrite(f'./results/img{i}_q2_7.jpg', median_7)
                 gaussian_5 = gaussian_filter(self.images[i - 1], 5)
                 cv2.imwrite(f'./results/img{i}_q3.jpg', gaussian_5)
+                svd_img = svd(self.images[i - 1])
+                cv2.imwrite(f'./results/img{i}_q4.jpg', svd_img)
         self.P1 = P1
 
     def Solve(self):
