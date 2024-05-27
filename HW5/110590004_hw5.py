@@ -77,16 +77,16 @@ class Q:
                         bar()
             return result
         
-        def special_filter(img, kernel_size):
-            kernel = np.ones((kernel_size, kernel_size)) / (2 * kernel_size**2 )
+        def special_filter(img, kernel_size, coef = 0.5):
+            kernel = (np.ones((kernel_size, kernel_size)) * coef)/ (kernel_size**2 )
             h, w = img.shape
             result = np.zeros((h, w))
             with alive_bar(h * w) as bar:
                 for row in range(h):
                     for col in range(w):
-                        neighbors = get_n_neighbors(img, row, col, 3)
+                        neighbors = get_n_neighbors(img, row, col, kernel_size)
                         result[row][col] = np.sum(neighbors * kernel)
-                        result[row][col] += np.median(neighbors) * 0.5
+                        result[row][col] += np.median(neighbors) * (1 - coef)
                         bar()
             return result
         @problem
@@ -103,7 +103,7 @@ class Q:
                 cv2.imwrite(f'./results/img{i}_q2_7.jpg', median_7)
                 gaussian_5 = gaussian_filter(self.images[i - 1], 5)
                 cv2.imwrite(f'./results/img{i}_q3.jpg', gaussian_5)
-                special_3 = special_filter(self.images[i - 1], 3)
+                special_3 = special_filter(self.images[i - 1], 3, 0.3)
                 cv2.imwrite(f'./results/img{i}_q4.jpg', special_3)
                 
         self.P1 = P1
