@@ -76,12 +76,19 @@ class Q:
                         result[row][col] = np.sum(neighbors * kernel)
                         bar()
             return result
-        def svd(image):
-            U, S, V = np.linalg.svd(image, full_matrices=False)
-            # only keep the first 50 singular values
-            S[20:] = 0
-            return U @ np.diag(S) @ V
         
+        def special_filter(img, kernel_size):
+            kernel = np.ones((kernel_size, kernel_size)) / (2 * kernel_size**2 )
+            h, w = img.shape
+            result = np.zeros((h, w))
+            with alive_bar(h * w) as bar:
+                for row in range(h):
+                    for col in range(w):
+                        neighbors = get_n_neighbors(img, row, col, 3)
+                        result[row][col] = np.sum(neighbors * kernel)
+                        result[row][col] += np.median(neighbors) * 0.5
+                        bar()
+            return result
         @problem
         def P1():
             for i in range(1, 4):
@@ -96,8 +103,9 @@ class Q:
                 cv2.imwrite(f'./results/img{i}_q2_7.jpg', median_7)
                 gaussian_5 = gaussian_filter(self.images[i - 1], 5)
                 cv2.imwrite(f'./results/img{i}_q3.jpg', gaussian_5)
-                svd_img = svd(self.images[i - 1])
-                cv2.imwrite(f'./results/img{i}_q4.jpg', svd_img)
+                special_3 = special_filter(self.images[i - 1], 3)
+                cv2.imwrite(f'./results/img{i}_q4.jpg', special_3)
+                
         self.P1 = P1
 
     def Solve(self):
