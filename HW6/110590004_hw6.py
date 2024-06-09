@@ -166,7 +166,7 @@ class Q:
             for i in range(1, 4):
                 print(f'Processing img{i}.jpg')
                 print('Gaussian filter')
-                gaussian = gaussian_filter(self.images[i - 1], 5, 0.9)
+                gaussian = gaussian_filter(self.images[i - 1], 5, 1.1)
                 save_img(gaussian, f'./debug/img{i}_gaussian.jpg')
                 print('Processing Sobel operator')
                 G, theta = Sobel(gaussian)
@@ -175,7 +175,7 @@ class Q:
                 non_max = non_maximum_suppression(G, theta)
                 save_img(non_max, f'./debug/img{i}_non_max.jpg')
                 print('Double thresholding')
-                double_thresh = double_thresholding(non_max, 80, 150)
+                double_thresh = double_thresholding(non_max, 90, 175)
                 save_img(double_thresh, f'./debug/img{i}_double_thresh.jpg')
                 print('Edge tracking by hysteresis')
                 edge_tracking = edge_tracking_by_hysteresis(

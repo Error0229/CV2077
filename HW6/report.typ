@@ -32,5 +32,13 @@ python 110590004_hw6.py
 === Result
 - The result of Canny edge detector is shown below.
 
+#grid(
+  rows: 3,
+  gutter: 10pt,
+  align: horizon,
+  grid.cell(figure(image("results/img1_sobel.jpg"))),
+  grid.cell(figure(image("results/img2_sobel.jpg"))),
+  grid.cell(figure(image("results/img3_sobel.jpg"))),
+)
 
 #pagebreak()
