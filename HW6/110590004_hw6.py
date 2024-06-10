@@ -175,7 +175,7 @@ class Q:
                 non_max = non_maximum_suppression(G, theta)
                 save_img(non_max, f'./debug/img{i}_non_max.jpg')
                 print('Double thresholding')
-                double_thresh = double_thresholding(non_max, 90, 175)
+                double_thresh = double_thresholding(non_max, 60, 190)
                 save_img(double_thresh, f'./debug/img{i}_double_thresh.jpg')
                 print('Edge tracking by hysteresis')
                 edge_tracking = edge_tracking_by_hysteresis(
